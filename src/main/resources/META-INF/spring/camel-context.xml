@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    JBoss, Home of Professional Open Source
+    Copyright 2014, Red Hat, Inc. and/or its affiliates, and individual
+    contributors by the @authors tag. See the copyright.txt in the
+    distribution for a full listing of individual contributors.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<!-- Configures the Camel Context-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:cxf="http://camel.apache.org/schema/cxf"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans      http://www.springframework.org/schema/beans/spring-beans.xsd             http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd             http://camel.apache.org/schema/cxf http://camel.apache.org/schema/cxf/camel-cxf.xsd    ">
+    <cxf:cxfEndpoint address="http://localhost:9191/cxf/operation"
+        id="operationEndpoint" serviceClass="com.ejercicio.soap.OperationService"/>
+    <cxf:rsServer address="http://localhost:9191/cxf/customer"
+        id="restEndpoint" serviceClass="com.ejercicio.rest.CustomerServiceREST"/>
+    <bean class="com.ejercicio.soap.OperationProcessor" id="operationProcessor"/>
+    <camelContext id="_camelContext1" xmlns="http://camel.apache.org/schema/spring">
+        <route id="cxfRoute">
+            <from id="_from1" uri="cxf:bean:operationEndpoint"/>
+            <log id="_log1" message="${header.operationName}"/>
+            <recipientList id="_recipientList1">
+                <simple>direct:${header.operationName}</simple>
+            </recipientList>
+        </route>
+        <route id="cxfRouteResta">
+            <from id="_from2" uri="direct:restar"/>
+            <bean id="_bean1" method="resta" ref="operationProcessor"/>
+        </route>
+        <route id="cxfRouteSuma">
+            <from id="_from3" uri="direct:sumar"/>
+            <bean id="_bean2" method="suma" ref="operationProcessor"/>
+        </route>
+        <route id="routeRest">
+            <from id="_from4" uri="cxfrs:bean:restEndpoint"/>
+            <log id="_log2" message="${header.operationName}"/>
+            <choice id="_choice1">
+                <when id="_when1">
+                    <simple>${header.operationName} == "restarRest"</simple>
+                    <setHeader headerName="operationName" id="_setHeader1">
+                        <simple>restar</simple>
+                    </setHeader>
+                    <bean id="_bean3"
+                        method="prepareList(${in.body[0]},${in.body[1]})" ref="operationProcessor"/>
+                    <to id="_to1" uri="cxf:bean:operationEndpoint"/>
+                </when>
+                <when id="_when2">
+                    <simple>${header.operationName} == "sumarRest"</simple>
+                    <setHeader headerName="operationName" id="_setHeader2">
+                        <simple>sumar</simple>
+                    </setHeader>
+                    <bean id="_bean4"
+                        method="prepareList(${in.body[0]},${in.body[1]})" ref="operationProcessor"/>
+                    <to id="_to2" uri="cxf:bean:operationEndpoint"/>
+                </when>
+            </choice>
+            <marshal id="_marshal1">
+                <json library="Jackson" prettyPrint="true"/>
+            </marshal>
+        </route>
+    </camelContext>
+</beans>
